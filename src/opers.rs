@@ -1,10 +1,10 @@
 use std::fmt::Debug;
 
-use crate::term::Term;
+use crate::answer::Answer;
 use crate::context::Context;
 use crate::errors::MathError;
 use crate::num::Num;
-use crate::answer::Answer;
+use crate::term::Term;
 
 /// The result of an evaluation
 pub type Calculation<N> = Result<Answer<N>, MathError>;
@@ -28,9 +28,7 @@ impl<N: Num + 'static> Operate<N> for Add<N> {
 		let a = self.a.eval_ctx(ctx)?;
 		let b = self.b.eval_ctx(ctx)?;
 
-		a.op(&b, |a, b| {
-			a.add(b, ctx)
-		})
+		a.op(&b, |a, b| a.add(b, ctx))
 	}
 
 	fn to_string(&self) -> String {
@@ -49,9 +47,7 @@ impl<N: Num + 'static> Operate<N> for Sub<N> {
 		let a = self.a.eval_ctx(ctx)?;
 		let b = self.b.eval_ctx(ctx)?;
 
-		a.op(&b, |a, b| {
-			a.sub(b, ctx)
-		})
+		a.op(&b, |a, b| a.sub(b, ctx))
 	}
 
 	fn to_string(&self) -> String {
@@ -70,9 +66,7 @@ impl<N: Num + 'static> Operate<N> for Mul<N> {
 		let a = self.a.eval_ctx(ctx)?;
 		let b = self.b.eval_ctx(ctx)?;
 
-		a.op(&b, |a, b| {
-			a.mul(b, ctx)
-		})
+		a.op(&b, |a, b| a.mul(b, ctx))
 	}
 
 	fn to_string(&self) -> String {
@@ -91,9 +85,7 @@ impl<N: Num + 'static> Operate<N> for Div<N> {
 		let a = self.a.eval_ctx(ctx)?;
 		let b = self.b.eval_ctx(ctx)?;
 
-		a.op(&b, |a, b| {
-			a.div(b, ctx)
-		})
+		a.op(&b, |a, b| a.div(b, ctx))
 	}
 
 	fn to_string(&self) -> String {
@@ -112,9 +104,7 @@ impl<N: Num + 'static> Operate<N> for Pow<N> {
 		let a = self.a.eval_ctx(ctx)?;
 		let b = self.b.eval_ctx(ctx)?;
 
-		a.op(&b, |a, b| {
-			a.pow(b, ctx)
-		})
+		a.op(&b, |a, b| a.pow(b, ctx))
 	}
 
 	fn to_string(&self) -> String {
@@ -133,12 +123,8 @@ impl<N: Num + 'static> Operate<N> for PlusMinus<N> {
 		let a = self.a.eval_ctx(ctx)?;
 		let b = self.b.eval_ctx(ctx)?;
 
-		let adds = a.op(&b, |a, b| {
-			a.add(b, ctx)
-		})?;
-		let subs = a.op(&b, |a, b| {
-			a.sub(b, ctx)
-		})?;
+		let adds = a.op(&b, |a, b| a.add(b, ctx))?;
+		let subs = a.op(&b, |a, b| a.sub(b, ctx))?;
 
 		Ok(adds.join(subs))
 	}
@@ -157,9 +143,7 @@ impl<N: Num + 'static> Operate<N> for Neg<N> {
 	fn eval(&self, ctx: &Context<N>) -> Calculation<N> {
 		let a = self.a.eval_ctx(ctx)?;
 
-		a.op(&N::from_f64(-1.0, ctx)?, |a, b| {
-			a.mul(b, ctx)
-		})
+		a.op(&N::from_f64(-1.0, ctx)?, |a, b| a.mul(b, ctx))
 	}
 
 	fn to_string(&self) -> String {
@@ -211,6 +195,31 @@ pub(crate) struct Fact<N: Num> {
 	pub a: Term<N>,
 }
 
+impl Operate<f64> for Fact<f64> {
+	fn eval(&self, _ctx: &Context<f64>) -> Calculation<f64> {
+		// FIXME: implement lanczos approximation
+		// i just need something simple and low effort for real numbers
+		let a = self.a.eval_ctx(_ctx)?;
+		let mut f = f64::from_f64(1.0, _ctx)?;
+
+		match a {
+			Answer::Single(a) => {
+				for i in 1..=(a as u64) {
+					f = f.op(&f64::from_f64(i as f64, _ctx)?, |a, b| a.mul(b, _ctx))?;
+				}
+				Ok(f)
+			}
+			Answer::Multiple(_) => {
+				unreachable!("Multiple answers of factorial");
+			}
+		}
+	}
+
+	fn to_string(&self) -> String {
+		format!("({}!)", self.a)
+	}
+}
+
 impl<N: Num + 'static> Operate<N> for Fact<N> {
 	fn eval(&self, _ctx: &Context<N>) -> Calculation<N> {
 		Err(MathError::Unimplemented {
@@ -233,9 +242,7 @@ impl<N: Num + 'static> Operate<N> for Percent<N> {
 	fn eval(&self, ctx: &Context<N>) -> Calculation<N> {
 		let a = self.a.eval_ctx(ctx)?;
 
-		a.op(&N::from_f64(0.01, ctx)?, |a, b| {
-			a.mul(b, ctx)
-		})
+		a.op(&N::from_f64(0.01, ctx)?, |a, b| a.mul(b, ctx))
 	}
 
 	fn to_string(&self) -> String {
